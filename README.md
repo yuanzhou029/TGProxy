@@ -164,9 +164,21 @@ TG 客户端本身就有多流、并且会自动分流，所以 lanes 让**每�
 
 - 使用**自有域名 + CNAME**，或直接走 Cloudflare **SaaS（自定义主机名）优选**，以获得更好的接入体验。
 - 参考实现中曾出现第三方线路（非官方 `web.telegram.org` 域名）导致边缘层 `1034` / `403`；换成官方 web 域名后恢复正常，因此**优先使用 Telegram 官方 web 域名与稳定的自有 CNAME / Custom Domain**，避免依赖质量不稳定的中间线路。
-
+## 验证部署有效性
+```
+curl https://你的域名/health
+或浏览器
+https://你的域名/health
+```
+* 成功响应：返回 {"ok":true}，HTTP 状态码为 200，说明密钥校验与路由初始化正常。
+* 失败排查：若返回 500，说明未正确绑定 SECRET 或 BOOT 变量，需检查 Workers 环境变量设置。
+## 客户端配置与应用
+```
+https://t.me/proxy?server=你的域名&secret=ddxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+或
+tg://proxy?server=你的域名&secret=ddxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ## 相关链接
-
+```
 - 开源协议：[GPL-3.0](./LICENSE)
 - 频道 / 交流群组：<https://t.me/Enkelte_notif>
 - Telegram Desktop（tdesktop）：<https://github.com/telegramdesktop/tdesktop>
