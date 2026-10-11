@@ -141,6 +141,7 @@ TG 客户端本身就有多流、并且会自动分流，所以 lanes 让**每�
 | `SECRET` | `openssl rand -hex 16` | `32` 位 hex |
 | `SECRET`（带前缀） | `printf 'dd%s\n' "$(openssl rand -hex 16)"` | `34` 位 hex |
 | `BOOT` | `openssl rand -hex 24` | `48` 位 hex |
+| `CAMOUFLAGE_URL` | `伪装页面` | `带https://` |
 
 `openssl rand` 走系统 CSPRNG，是真随机。任一绑定缺失，`mkCfg` 直接抛错，`/health` 会返回 `500` 而不是 `{"ok":true}`。
 
@@ -149,7 +150,7 @@ TG 客户端本身就有多流、并且会自动分流，所以 lanes 让**每�
 | 路径 | 方法 | 说明 |
 | --- | --- | --- |
 | `/` | `GET` / `HEAD` | 校验 bridge 签名后下发 web-proxy 页面 |
-| `/health` | `GET` | `{"ok":true}` |
+| `/health` | `GET` | `{"ok":true}` |  代码已经修改了，/health已经失效
 | `/api/v1/session` | `POST` | 建会话，返回 session token |
 | `/api/v1/session` | `DELETE` | 注销会话 |
 | `/api/v1/ws` | `GET` | lane WebSocket（需 `Upgrade` 与正确子协议） |
