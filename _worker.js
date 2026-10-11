@@ -221,11 +221,12 @@ function hello(body) {
 
 const protos = req => (req.headers.get('Sec-WebSocket-Protocol') ?? '').split(',').map(v => v.trim()).filter(Boolean);
 
-const mkCfg = ({ SECRET, BOOT }) => {
+const mkCfg = ({ SECRET, BOOT, CAMOUFLAGE_URL }) => {
   const secret = String(SECRET || '').trim(), boot = String(BOOT || '').trim();
   if (!secret) throw Error();
   if (!boot) throw Error();
-  return { secret, key: getKey(secret), boot };
+  const camo = String(CAMOUFLAGE_URL || 'https://tcs.yz029.dpdns.org').trim();
+  return { secret, key: getKey(secret), boot, camo };
 };
 
 function getCfg(env) {
@@ -830,6 +831,31 @@ function purgeLeases(now = Date.now()) {
   }
 }
 
+async function serveCamouflage(req, url, targetBase) {
+  try {
+    const target = new URL(targetBase);
+    const forwardUrl = new URL(url.pathname + url.search, target.origin);
+    const headers = new Headers(req.headers);
+    headers.set('Host', target.host);
+    headers.set('Referer', target.origin);
+    const res = await fetch(forwardUrl.toString(), {
+      method: req.method,
+      headers,
+      body: (req.method !== 'GET' && req.method !== 'HEAD') ? req.body : null,
+      redirect: 'follow',
+    });
+    const resHeaders = new Headers(res.headers);
+    resHeaders.delete('content-security-policy');
+    resHeaders.delete('x-frame-options');
+    return new Response(res.body, { status: res.status, headers: resHeaders });
+  } catch {
+    return new Response('<!doctype html><meta charset="utf-8"><title>Not Found</title><h1>404 Not Found</h1>', {
+      status: 404,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+  }
+}
+
 function mkPage(host, boot) {
   const nonce = b64(rand(18));
   const body = `<script nonce="__NONCE__">
@@ -872,7 +898,7 @@ const route = async (req, env) => {
   const url = new URL(req.url), { pathname: path, origin } = url, { method, headers } = req;
   let cfg;
   try { cfg = getCfg(env); }
-  catch { return ['/', '/health', '/api/v1/session', '/api/v1/ws'].includes(path) ? reply(null, 500) : reply(); }
+  catch { return ['/oktrue', '/api/v1/session', '/api/v1/ws'].includes(path) ? reply(null, 500) : reply(); }
 
   if (path === '/' && (method === 'GET' || method === 'HEAD')) {
     let host = null;
@@ -900,12 +926,10 @@ const route = async (req, env) => {
         },
       });
     }
-    return new Response(method === 'HEAD' ? null : '<!doctype html><meta charset="utf-8"><title>Connection</title>', {
-      status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
+    return serveCamouflage(req, url, cfg.camo);
   }
 
-  if (path === '/health') {
+  if (path === '/oktrue') {
     return new Response('{"ok":true}', { headers: { 'content-type': 'application/json; charset=utf-8' } });
   }
 
@@ -945,6 +969,9 @@ const route = async (req, env) => {
     headers.get('Upgrade')?.toLowerCase() !== 'websocket' ||
     (headers.has('Origin') && headers.get('Origin') !== origin)
   ) {
+    if (method === 'GET' || method === 'HEAD') {
+      return serveCamouflage(req, url, cfg.camo);
+    }
     return reply();
   }
 
